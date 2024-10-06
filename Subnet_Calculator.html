@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vohala Subnet Calculator</title>
+    <style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #000;
+        color: #fff;
+    }
+    .container {
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #fff;
+        color: #000;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h2 {
+        color: #308228;
+        text-align: center;
+    }
+    label, select, input, button {
+        display: block;
+        width: 100%;
+        margin-top: 10px;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+    }
+    button {
+        background-color: #308228;
+        color: white;
+        margin-top: 20px;
+    }
+    button:hover {
+        background-color: #245f1a;
+    }
+    #result {
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #e1f4ff;
+        border-left: 4px solid #308228;
+        color: #005A9C;
+    }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Vohala Subnet Calculator</h2>
+        <label for="ipAddress">IP Address:</label>
+        <input type="text" id="ipAddress" placeholder="e.g., 192.168.1.1" required>
+
+        <label for="cidr">CIDR Notation:</label>
+        <select id="cidr"></select>
+
+        <button onclick="calculateSubnet()">Calculate</button>
+
+        <div class="results" id="results">
+            
+        </div>
+    </div>
+
+    <script>
+        function populateCIDROptions() {
+            const cidrSelect = document.getElementById('cidr');
+            for (let i = 1; i <= 32; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.text = '/' + i;
+                cidrSelect.appendChild(option);
+            }
+        }
+
+        function calculateSubnet() {
+            const ipAddress = document.getElementById('ipAddress').value;
+            const cidr = parseInt(document.getElementById('cidr').value);
+            const subnetMask = cidrToMask(cidr);
+            const { networkAddress, broadcastAddress } = getNetworkAndBroadcastAddress(ipAddress, cidr);
+
+            const firstUsableIP = intToIP(ipToInt(networkAddress) + 1);
+            const lastUsableIP = intToIP(ipToInt(broadcastAddress) - 1);
+            const totalHosts = Math.pow(2, 32 - cidr);
+            const usableHosts = totalHosts <= 2 ? 0 : totalHosts - 2; // For /31 and /32 special cases
+
+            const resultsHtml = `
+                <p>IP Address: ${ipAddress}</p>
+                <p>Network Address: ${networkAddress}</p>
+                <p>Usable Host IP Range: ${firstUsableIP} - ${lastUsableIP}</p>
+                <p>Broadcast Address: ${broadcastAddress}</p>
+                <p>Total Number of Hosts: ${totalHosts}</p>
+                <p>Number of Usable Hosts: ${usableHosts}</p>
+                <p>Subnet Mask: ${subnetMask}</p>
+                <p>CIDR Notation: /${cidr}</p>
+            `;
+
+            document.getElementById('results').innerHTML = resultsHtml;
+        }
+
+        function cidrToMask(cidr) {
+            let mask = [];
+            for (let i = 0; i < 4; i++) {
+                const n = Math.min(cidr, 8);
+                mask.push(256 - Math.pow(2, 8 - n));
+                cidr -= n;
+            }
+            return mask.join('.');
+        }
+
+        function getNetworkAndBroadcastAddress(ip, cidr) {
+            const ipInt = ipToInt(ip);
+            const maskInt = ipToInt(cidrToMask(cidr));
+            const networkInt = ipInt & maskInt;
+            const broadcastInt = networkInt | (~maskInt & 0xFFFFFFFF);
+            return {
+                networkAddress: intToIP(networkInt),
+                broadcastAddress: intToIP(broadcastInt)
+            };
+        }
+
+        function ipToInt(ip) {
+            return ip.split('.').map(octet => parseInt(octet, 10)).reduce((acc, octet) => (acc << 8) + octet);
+        }
+
+        function intToIP(int) {
+            return [
+                (int >>> 24) & 255,
+                (int >>> 16) & 255,
+                (int >>> 8) & 255,
+                int & 255
+            ].join('.');
+        }
+
+        populateCIDROptions();
+    </script>
+</body>
+</html>
